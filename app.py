@@ -47,9 +47,10 @@ if prompt := st.chat_input("Ask me anything..."):
 
         response = workflow.invoke(graph_input)
 
-        # The final response is the last message from the AI
-        final_response = response['messages'][-1]
+        # Update the session state with the full message history from the workflow
+        st.session_state.messages = response['messages']
 
-        st.session_state.messages.append(final_response)
+        # Display the latest AI message
+        final_response = st.session_state.messages[-1]
         with st.chat_message("ai"):
             st.markdown(final_response.content)

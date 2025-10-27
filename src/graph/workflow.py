@@ -1,5 +1,5 @@
 from typing import List, TypedDict, Optional
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, ToolMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langgraph.graph import END, StateGraph
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
@@ -14,6 +14,7 @@ class RouteQuery(BaseModel):
 class GraphState(TypedDict):
     messages: List[BaseMessage]
     category: Optional[str]
+    tool_output: Optional[str]
 
 class NewsGenieWorkflow:
     def __init__(self):
@@ -28,18 +29,28 @@ class NewsGenieWorkflow:
     def call_news_tool(self, state: GraphState):
         category = state.get("category", "business")
         news_results = get_news(category)
-        tool_message = ToolMessage(content=news_results, name="news_tool")
-        return {"messages": [tool_message]}
+        return {"tool_output": news_results}
 
     def call_web_search_tool(self, state: GraphState):
         last_message = state['messages'][-1].content
         search_results = web_search(last_message)
-        tool_message = ToolMessage(content=search_results, name="web_search_tool")
-        return {"messages": [tool_message]}
+        return {"tool_output": search_results}
 
     def generate_response(self, state: GraphState):
-        response = self.llm.invoke(state['messages'])
-        return {"messages": [response]}
+        last_message = state['messages'][-1].content
+        tool_output = state.get('tool_output')
+
+        # Craft a prompt that includes the tool's output
+        prompt = (
+            f"Based on the following information: {tool_output}\n\n"
+            f"Please provide a conversational response to the user's query: '{last_message}'"
+        )
+
+        response = self.llm.invoke(prompt)
+        ai_message = AIMessage(content=response.content)
+
+        # Append the new AI message to the conversation history
+        return {"messages": state['messages'] + [ai_message]}
 
     def build(self):
         workflow = StateGraph(GraphState)
