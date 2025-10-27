@@ -1,0 +1,9 @@
+streamlit
+python-dotenv
+langchain
+langgraph
+newsapi-python
+tavily-python
+langchain-openai
+langchain-community
+langchain-core
